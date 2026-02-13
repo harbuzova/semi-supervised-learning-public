@@ -77,7 +77,7 @@ def init_usvt(
     A,                # adjacency matrix (dense)
     d,                # latent dimension
     tau=None,         # we use the empirical mean degree in practice
-    center=True,      # center the approximated logit matrix in initialization
+    center=False,      # center the approximated logit matrix in initialization, not needed in practice
     usvt_rank=100,    # how many leading eigs to compute for USVT truncation
 ):
     """
@@ -119,7 +119,8 @@ def init_usvt(
     R = apply_J_left_right(Theta_hat) if center else Theta_hat
 
     Z0 = topk_psd_factor(R, d)
-    return center_columns(Z0)
+    Z0 = center_columns(Z0) if center else Z0
+    return Z0
 
 
 # ----------------------------
