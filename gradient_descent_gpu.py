@@ -78,7 +78,6 @@ def init_usvt_gpu(
     if not cupy.any(keep):
         keep[: min(d, len(vals))] = True
 
-    # Matrix multiplication on A100 uses Tensor Cores
     # Pr = (V * vals) @ V.T
     Pr = (vecs[:, keep] * vals[keep]) @ vecs[:, keep].T
     Pr = symmetrize_gpu(Pr)
@@ -92,6 +91,8 @@ def init_usvt_gpu(
     return Z0, z0_norm
 
 # gradient descent step
+# the default inputs are the parameters used in our simulations
+# loss typically stabilize at ~800 GD steps
 
 def gradient_descent_gpu(A, d, eta=0.2, T=1000, verbose=False, init_kwargs = None):
 
@@ -110,14 +111,14 @@ def gradient_descent_gpu(A, d, eta=0.2, T=1000, verbose=False, init_kwargs = Non
 
     history = []
     for t in range(T):
-        Theta = Z @ Z.T                   # n×n  (GPU GEMM)
-        S = sigmoid_gpu(Theta)            # n×n  (GPU elementwise)
+        Theta = Z @ Z.T                   # n×n  
+        S = sigmoid_gpu(Theta)            # n×n  
 
         # Gradient: 2 * (A - S) @ Z
-        Z = Z + 2.0 * eta_Z * ((A - S) @ Z)  # (GPU GEMM)
+        Z = Z + 2.0 * eta_Z * ((A - S) @ Z)  
 
         if verbose and (t % 100 == 0 or t == T - 1):
-            # Compute loss on same device to avoid transfers
+            # Compute loss
             # L = -sum(A*Theta) + sum(log(1+exp(Theta)))
             loss = cupy.sum(cupy.maximum(Theta, 0) - A * Theta + cupy.log1p(cupy.exp(-cupy.abs(Theta))))
             # Convert just the scalar for printing
